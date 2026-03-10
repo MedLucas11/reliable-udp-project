@@ -9,19 +9,17 @@ public class SegmentoConfiavel implements Serializable {
 
     private int id;
     private String mensagem;
-    private boolean ehAck;
-    private String tipoEnvio;
+    private boolean ACK;
 
-    public SegmentoConfiavel(int id, String mensagem, String tipoEnvio) {
+    public SegmentoConfiavel(int id, String mensagem) {
         this.id = id;
         this.mensagem = mensagem;
-        this.ehAck = false;
-        this.tipoEnvio = tipoEnvio;
+        this.ACK = false;
     }
 
     public SegmentoConfiavel(int id) {
         this.id = id;
-        this.ehAck = true;
+        this.ACK = true;
     }
 
     public int getID() {
@@ -33,11 +31,7 @@ public class SegmentoConfiavel implements Serializable {
     }
 
     public boolean isAck() {
-        return this.ehAck;
-    }
-
-    public String tipoEnvio() {
-        return this.tipoEnvio;
+        return this.ACK;
     }
 
     public byte[] toBytes() throws IOException {
