@@ -7,23 +7,23 @@ import java.io.IOException;
 
 public class SegmentoConfiavel implements Serializable {
 
-    private int id;
+    private int seqNum;
     private String mensagem;
     private boolean ACK;
 
-    public SegmentoConfiavel(int id, String mensagem) {
-        this.id = id;
+    public SegmentoConfiavel(int seqNum, String mensagem) {
+        this.seqNum = seqNum;
         this.mensagem = mensagem;
         this.ACK = false;
     }
 
-    public SegmentoConfiavel(int id) {
-        this.id = id;
+    public SegmentoConfiavel(int seqNum) {
+        this.seqNum = seqNum;
         this.ACK = true;
     }
 
-    public int getID() {
-        return this.id;
+    public int getSeqNum() {
+        return this.seqNum;
     }
 
     public String getMensagem() {

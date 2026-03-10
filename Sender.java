@@ -9,6 +9,30 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Sender {
+    static DatagramSocket socket;
+
+    static class Listener extends Thread {
+        public void run() {
+            byte[] inputBuffer = new byte[2048];
+            //System.out.println("\nListening ACKs through the Thread...");
+            
+            try {
+                while (true) {
+                    DatagramPacket packet = new DatagramPacket(inputBuffer, inputBuffer.length);
+                    socket.receive(packet);
+
+                    SegmentoConfiavel ack = SegmentoConfiavel.fromBytes(packet.getData());
+                
+                    if(ack.isAck()) {
+                        System.out.println("\nMensagem id " + ack.getSeqNum() + " recebida pelo receiver");
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Erro na thread de escuta: " + e.getMessage());
+            }
+        };
+    }
+
     public static void main(String[] args) throws UnknownHostException, SocketException, IOException {
         Scanner scan = new Scanner(System.in);
         Map<Integer, String> tiposEnvio = new HashMap<>();
@@ -19,20 +43,23 @@ public class Sender {
         tiposEnvio.put(5, "fora de ordem");
         
         System.out.print("Digite o IP do Receiver [127.0.0.1]:");
+        socket = new DatagramSocket();
         String ipStr = scan.nextLine();
         InetAddress ipDestino = InetAddress.getByName(ipStr.isEmpty() ? "127.0.0.1" : ipStr);
         int destPort = 12345;
-
-        DatagramSocket socket = new DatagramSocket();
+        
 
         int idAtual = 0;
-
+        Thread thread = new Listener();
+        thread.start();
+        
+        
         while(true) {
 
-            System.err.print("Digite a mensagem que deseja enviar: ");
+            //System.out.print("\nDigite a mensagem que deseja enviar: ");
             String mensagem = scan.nextLine();
 
-            System.out.println("Escolha o tipo de envio (digite o número entre []):");
+            System.out.println("\nEscolha o tipo de envio (digite o número entre []):\n");
             System.out.println("[1] - Normal\n[2] - Duplicada\n[3] - Lento\n[4] - Perda\n[5] - Fora de Ordem");
             
             int tipoEnvio = scan.nextInt();
@@ -46,8 +73,8 @@ public class Sender {
 
             socket.send(packet);
 
-            System.out.println("Mensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getID());
-            
+            System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
+        
             idAtual++;
             
             if(mensagem.equals("quit")) {
