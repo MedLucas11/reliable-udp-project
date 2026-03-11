@@ -5,7 +5,9 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Scanner;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Sender {
@@ -27,13 +29,11 @@ public class Sender {
                         System.out.println("\nMensagem id " + ack.getSeqNum() + " recebida pelo receiver");
                     }
                 }
-            } catch (Exception e) {
-                System.out.println("Erro na thread de escuta: " + e.getMessage());
-            }
+            } catch (Exception e) {}
         };
     }
 
-    public static void main(String[] args) throws UnknownHostException, SocketException, IOException {
+    public static void main(String[] args) throws UnknownHostException, SocketException, IOException, InterruptedException {
         Scanner scan = new Scanner(System.in);
         Map<Integer, String> tiposEnvio = new HashMap<>();
         tiposEnvio.put(1, "normal");
@@ -53,6 +53,7 @@ public class Sender {
         Thread thread = new Listener();
         thread.start();
         
+        List<DatagramPacket> pacotesCriados = new ArrayList<>();
         
         while(true) {
 
@@ -64,17 +65,39 @@ public class Sender {
             
             int tipoEnvio = scan.nextInt();
             scan.nextLine();
-
+            
             SegmentoConfiavel segmento = new SegmentoConfiavel(idAtual, mensagem);
             byte[] dados = segmento.toBytes();
-
-
             DatagramPacket packet = new DatagramPacket(dados, dados.length, ipDestino, destPort);
-
-            socket.send(packet);
-
-            System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
-        
+            
+            switch (tipoEnvio) {
+                case 1: // Normal
+                    socket.send(packet);
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
+                    break;
+            
+                case 2: // Duplicada
+                    socket.send(packet);
+                    socket.send(packet);
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
+                    break;
+                
+                case 3: // Lento
+                    Thread.sleep(3000);
+                    socket.send(packet);
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
+                    break;
+                
+                case 4: // Com perda
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
+                    break;
+                
+                case 5: // Fora de Ordem
+                    pacotesCriados.add(packet);
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
+                    break;
+            }
+            
             idAtual++;
             
             if(mensagem.equals("quit")) {
