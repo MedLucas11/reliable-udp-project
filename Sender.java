@@ -5,13 +5,17 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Scanner;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Sender {
     static DatagramSocket socket;
+    static Map<Integer, Timer> timers = new ConcurrentHashMap<>();
 
     static class Listener extends Thread {
         public void run() {
@@ -27,10 +31,40 @@ public class Sender {
                 
                     if(ack.isAck()) {
                         System.out.println("\nMensagem id " + ack.getSeqNum() + " recebida pelo receiver");
+                    
+                        Timer timer = timers.remove(ack.getSeqNum());
+                        if(timer != null){ 
+                            timer.cancel();
+                        }
                     }
                 }
             } catch (Exception e) {}
         };
+    }
+
+    static class RetransmissionTimer extends TimerTask {
+        private DatagramPacket packetStore;
+        private int seqNumStore;
+
+        public RetransmissionTimer(DatagramPacket packet, int seq) {
+            this.packetStore = packet;
+            this.seqNumStore = seq;
+        }
+
+        public void run() {
+            System.out.println("\nMensagem id " + seqNumStore + " deu timeout, reenviando.");
+
+            try {
+                socket.send(packetStore);
+            } catch (IOException e) {}
+        }
+    }
+
+    static void startTimer(DatagramPacket packet, int id) {
+        Timer timer = new Timer();
+        RetransmissionTimer task = new RetransmissionTimer(packet, id);
+        timers.put(id, timer);
+        timer.schedule(task, 10000);
     }
 
     public static void main(String[] args) throws UnknownHostException, SocketException, IOException, InterruptedException {
@@ -53,7 +87,7 @@ public class Sender {
         Thread thread = new Listener();
         thread.start();
         
-        List<DatagramPacket> pacotesCriados = new ArrayList<>();
+        Map<Integer, DatagramPacket> pacotesCriados = new LinkedHashMap<>();
         
         while(true) {
 
@@ -70,14 +104,18 @@ public class Sender {
             byte[] dados = segmento.toBytes();
             DatagramPacket packet = new DatagramPacket(dados, dados.length, ipDestino, destPort);
             
+
             switch (tipoEnvio) {
                 case 1: // Normal
                     socket.send(packet);
+                    startTimer(packet, segmento.getSeqNum());
                     System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
 
                     if (!pacotesCriados.isEmpty()) {
-                        for(DatagramPacket p : pacotesCriados) {
-                            socket.send(p);
+                        for(Map.Entry<Integer, DatagramPacket> p : pacotesCriados.entrySet()) {
+                            socket.send(p.getValue());
+                            startTimer(p.getValue(), p.getKey());
+                            Thread.sleep(500);
                         }
                         pacotesCriados.clear();
                     }
@@ -86,21 +124,24 @@ public class Sender {
                 case 2: // Duplicada
                     socket.send(packet);
                     socket.send(packet);
+                    startTimer(packet, segmento.getSeqNum());
                     System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
                     break;
                 
                 case 3: // Lento
                     Thread.sleep(3000);
                     socket.send(packet);
+                    startTimer(packet, segmento.getSeqNum());
                     System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
                     break;
                 
                 case 4: // Com perda
+                    startTimer(packet, segmento.getSeqNum());
                     System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
                     break;
                 
                 case 5: // Fora de Ordem
-                    pacotesCriados.add(packet);
+                    pacotesCriados.put(segmento.getSeqNum(), packet);
                     System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
                     break;
             }

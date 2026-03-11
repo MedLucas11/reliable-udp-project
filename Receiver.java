@@ -52,7 +52,7 @@ public class Receiver {
                 recebidos.add(segmento.getSeqNum());
 
                 boolean first = true;
-                System.out.println("Mensagem id " + segmento.getSeqNum() + " recebida fora de ordem, ainda não recebidos os identificadores [");
+                System.out.print("Mensagem id " + segmento.getSeqNum() + " recebida fora de ordem, ainda não recebidos os identificadores [");
                 for(int i = seqEsperado; i < segmento.getSeqNum(); i++) {
                     if(!recebidos.contains(i)) {
                         if(!first) {
