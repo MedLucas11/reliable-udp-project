@@ -74,6 +74,13 @@ public class Sender {
                 case 1: // Normal
                     socket.send(packet);
                     System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getSeqNum());
+
+                    if (!pacotesCriados.isEmpty()) {
+                        for(DatagramPacket p : pacotesCriados) {
+                            socket.send(p);
+                        }
+                        pacotesCriados.clear();
+                    }
                     break;
             
                 case 2: // Duplicada
