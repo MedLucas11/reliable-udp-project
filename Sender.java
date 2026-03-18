@@ -33,7 +33,7 @@ public class Sender {
                 
                     // Caso seja um ACK, imprime na tela que foi recebida e remove do buffer com timers
                     if(ack.isAck()) {
-                        System.out.println("\nMensagem id " + ack.getID() + " recebida pelo receiver");
+                        System.out.println("\nMensagem id " + ack.getID() + " recebida pelo receiver\n");
                     
                         Timer timer = timers.remove(ack.getID());
                         if(timer != null){ 
@@ -91,15 +91,6 @@ public class Sender {
     public static void main(String[] args) throws UnknownHostException, SocketException, IOException, InterruptedException {
         Scanner scan = new Scanner(System.in);
         
-        // HashMap criado apenas para facilitar a criação do Menu que solicita o tipo de envio e a impressão de mensagens na tela, 
-        // associando cada número inteiro à um envio específico
-        Map<Integer, String> tiposEnvio = new HashMap<>();
-        tiposEnvio.put(1, "normal");
-        tiposEnvio.put(2, "duplicada");
-        tiposEnvio.put(3, "lento");
-        tiposEnvio.put(4, "perda");
-        tiposEnvio.put(5, "fora de ordem");
-        
         System.out.print("Digite o IP do Receiver [127.0.0.1]:");
         socket = new DatagramSocket();
 
@@ -124,14 +115,12 @@ public class Sender {
         Map<Integer, DatagramPacket> pacotesCriados = new HashMap<>();
         
         while(true) {
-
+            // Digitar a mensagem que deseja enviar, não coloquei um print de auxílio pois o comportamento assíncrono com as Threads bagunça o terminal
             String mensagem = scan.nextLine();
 
-            System.out.println("\nEscolha o tipo de envio (digite o número entre []):\n");
-            System.out.println("[1] - Normal\n[2] - Duplicada\n[3] - Lento\n[4] - Perda\n[5] - Fora de Ordem");
+            System.out.println("\nDigite o tipo de envio (normal, duplicada, lento, perda ou fora de ordem):\n");
             
-            int tipoEnvio = scan.nextInt();
-            scan.nextLine();
+            String tipoEnvio = scan.nextLine();
             
             // Constrói o segmento confiável para que possa ser enviado via UDP com o DatagramPacket
             SegmentoConfiavel segmento = new SegmentoConfiavel(idAtual, mensagem);
@@ -139,11 +128,11 @@ public class Sender {
             DatagramPacket packet = new DatagramPacket(dados, dados.length, ipDestino, destPort);
             
 
-            switch (tipoEnvio) {
-                case 1: // Normal: envio ocorre normalmente
+            switch (tipoEnvio.toLowerCase()) {
+                case "normal": // Normal: envio ocorre normalmente
                     socket.send(packet);
                     startTimer(packet, segmento.getID()); // Sempre que envio um pacote com socket.send(), inicio o timer logo em seguida
-                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getID());
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [normal] com id " + segmento.getID());
 
                     // Verifica os pacotes armazenados, para o caso de teste do "Fora de Ordem"
                     if (!pacotesCriados.isEmpty()) {
@@ -156,37 +145,37 @@ public class Sender {
                     }
                     break;
             
-                case 2: // Duplicada: envia dois pacotes 
+                case "duplicada": // Duplicada: envia dois pacotes 
                     socket.send(packet);
                     startTimer(packet, segmento.getID()); // Apenas um timer pois o segundo pacote enviado é apenas para simular o receiver recebendo duplicado
                     socket.send(packet);
                     
-                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getID());
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [duplicada] com id " + segmento.getID());
                     break;
                 
-                case 3: // Lento: pacote é enviado lentamente, simula o caso de "Timeout Prematuro"
+                case "lento": // Lento: pacote é enviado lentamente, simula o caso de "Timeout Prematuro"
                     startTimer(packet, segmento.getID()); // Inicio um Timer para o pacote atual, quando der timeout o RetransmissionTimer vai enviar novamente
                     // Inicio o SlowSender, que só vai enviar o pacote depois de 10 segundos
                     new SlowSender(packet).start();
                     
-                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getID());
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [lento] com id " + segmento.getID());
                     break;
                 
-                case 4: // Com perda: o pacote não chega e estoura o timer
+                case "perda": // Com perda: o pacote não chega e estoura o timer
                     startTimer(packet, segmento.getID()); // Utilizo apenas o método com startTimer para que ocorra o timeout, sem enviar com socket.send()
                     
-                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getID());
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [perda] com id " + segmento.getID());
                     break;
                 
-                case 5: // Fora de Ordem: simula o caso de pacotes fora de ordem
+                case "fora de ordem": // Fora de Ordem: simula o caso de pacotes fora de ordem
                     pacotesCriados.put(segmento.getID(), packet); // Apenas adiciono os pacotes no HashMap auxiliar e não os envio, o HashMap é esvaziado assim que um pacote normal é enviado
                     
-                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [" + tiposEnvio.get(tipoEnvio) +"] com id " + segmento.getID());
+                    System.out.println("\nMensagem \"" + mensagem + "\" enviada como [fora de ordem] com id " + segmento.getID());
                     break;
             }
             
             idAtual++;
-            
+         
             // Fecha a conexão
             if(mensagem.equals("quit")) {
                 System.out.println("Fechando conexão");
